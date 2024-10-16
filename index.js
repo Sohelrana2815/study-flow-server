@@ -30,13 +30,23 @@ async function run() {
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
 
-    const studyTaskCollection = client
-      .db("STUDY_FLOW_DB")
-      .collection("studyTasks");
+    const studyTaskCollection = client.db("STUDY_FLOW_DB").collection("tasks");
 
-    app.post("/studyTasks", async (req, res) => {
-      const studyTasks = req.body;
-      console.log(studyTasks);
+    // Study Tasks Related Api
+
+    app.get("/tasks", async (req, res) => {
+      const email = req.query.email;
+      console.log("email from client", email);
+      const query = { email: email };
+
+      const result = await studyTaskCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/tasks", async (req, res) => {
+      const task = req.body;
+      const result = await studyTaskCollection.insertOne(task);
+      res.send(result);
     });
 
     console.log(
