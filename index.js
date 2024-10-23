@@ -20,9 +20,9 @@ app.use(
 // MongoDB  Connection String...
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.5q2fm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.5q2fm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-const uri = "mongodb://localhost:27017/";
+// const uri = "mongodb://localhost:27017/";
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -81,22 +81,22 @@ async function run() {
           return res.status(401).send({ message: "Unauthorized" });
         }
         req.decoded = decoded;
+
         next();
       });
     };
 
     // Study Tasks Related Api
-    //task get api
+
+    //TASK  GET API
     app.get("/myStudyTasks", async (req, res) => {
       const email = req.query.email;
-      // console.log("email from client", email);
       const query = { email: email };
-      // console.log(query);
       const result = await studyTaskCollection.find(query).toArray();
       res.send(result);
     });
 
-    // task  post api
+    // TASK  POST API
 
     app.post("/addStudyTask", async (req, res) => {
       const task = req.body;
@@ -104,7 +104,7 @@ async function run() {
       res.send(result);
     });
 
-    // specific task get api
+    // SPECIFIC TASK GET API
     app.get("/specificStudyTask/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -112,7 +112,7 @@ async function run() {
       res.send(result);
     });
 
-    // Specific task update
+    // SPECIFIC TASK UPDATE
 
     app.patch("/updateStudyTask/:id", async (req, res) => {
       const id = req.params.id;
@@ -126,8 +126,7 @@ async function run() {
       res.send(result);
     });
 
-    // specific task  delete api
-
+    // SPECIFIC TASK  DELETE API
     app.delete("/deleteStudyTask/:id", async (req, res) => {
       const id = req.params.id;
 
@@ -136,15 +135,28 @@ async function run() {
       res.send(result);
     });
 
-    //  ASSIGNMENTS RELATED API
-    // Get assignments by difficulty level
+    // SENT  ASSIGNMENTS RELATED API
 
+    // GET ASSIGNMENTS BY DIFFICULTY LEVEL
     app.get("/assignmentLevel", async (req, res) => {
+      const currentPage = parseInt(req.query.currentPage);
+      const itemsPerPage = parseInt(req.query.itemsPerPage);
+
+      console.log("Pagination  query", currentPage, itemsPerPage);
       const difficultyLevel = req.query.difficultyLevel;
       const query = difficultyLevel ? { difficultyLevel } : {};
       // console.log(query);
-      const result = await assignmentCollection.find(query).toArray();
+      const result = await assignmentCollection
+        .find(query)
+        .skip(currentPage * itemsPerPage)
+        .limit(itemsPerPage)
+        .toArray();
       res.send(result);
+    });
+
+    app.get("/assignmentsCount", async (req, res) => {
+      const count = await assignmentCollection.estimatedDocumentCount();
+      res.send({ count });
     });
 
     // SPECIFIC ASSIGNMENT GET API
@@ -179,7 +191,8 @@ async function run() {
       const result = await assignmentCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
-    // Assignment post
+
+    // ASSIGNMENT POST
     app.post("/addAssignment", async (req, res) => {
       const assignment = req.body;
       console.log(assignment);
@@ -188,11 +201,24 @@ async function run() {
       res.send(result);
     });
 
-    // DELETE API WILL COMING SOON....
+    // USER ASSIGNMENT DELETE API
+
+    app.delete("/deleteMyAssignment/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const verifiedEmail = req.decoded.email;
+      console.log("User Posted Assignment ", email);
+      console.log("Verified Email : ", verifiedEmail);
+      if (email !== verifiedEmail) {
+        return res.status(403).send({ message: "Unauthorized action." });
+      }
+      const query = { email: email };
+      const result = await assignmentCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // SUBMITTED ASSIGNMENT  API
-    // SPECIFIC USER SUBMITTED ASSIGNMENT
 
+    //  MY SUBMITTED ASSIGNMENT GET API
     app.get("/mySubmittedAssignment", verifyToken, async (req, res) => {
       const email = req.query.email;
       // console.log("Submitted Assignment user : ", email);
@@ -201,7 +227,7 @@ async function run() {
       const result = await submittedAssignmentCollection.find(query).toArray();
       res.send(result);
     });
-
+    //  SUBMITTED ASSIGNMENT POST API
     app.post("/submitAssignment", async (req, res) => {
       const submittedAssignments = req.body;
       // console.log(submittedAssignments);
@@ -217,13 +243,14 @@ async function run() {
 
       res.send(result);
     });
+    // GET SPECIFIC SUBMITTED ASSIGNMENT
     app.get("/specificSubmittedAssignment/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const result = await submittedAssignmentCollection.findOne(filter);
       res.send(result);
     });
-
+    // UPDATE SPECIFIC SUBMITTED ASSIGNMENT
     app.patch("/updateSpecificSubmittedAssignment/:id", async (req, res) => {
       const id = req.params.id;
       const assignmentResult = req.body;
@@ -247,7 +274,10 @@ async function run() {
         await pendingAssignmentCollection.deleteOne(filter);
       }
       res.send(result);
+      console.log(result);
     });
+
+    // DELETE ASSIGNMENT AFTER GETTING RESULT
 
     app.delete("/deleteMarkedAssignment/:id", async (req, res) => {
       const id = req.params.id;
@@ -256,7 +286,7 @@ async function run() {
       res.send(result);
     });
 
-    // Pending Assignment apis
+    // PENDING ASSIGNMENT APIS (NOT MARKED YET.)
 
     app.get("/pendingAssignments", verifyToken, async (req, res) => {
       const result = await pendingAssignmentCollection.find().toArray();
