@@ -91,8 +91,13 @@ async function run() {
     //TASK  GET API
     app.get("/myStudyTasks", async (req, res) => {
       const email = req.query.email;
-      const query = { email: email };
-      const result = await studyTaskCollection.find(query).toArray();
+      const priority = req.query.priority;
+      const filter = { email };
+      if (priority) {
+        filter.priority = priority;
+      }
+
+      const result = await studyTaskCollection.find(filter).toArray();
       res.send(result);
     });
 
