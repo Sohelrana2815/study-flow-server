@@ -40,6 +40,7 @@ async function run() {
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
 
+    const featureCollection = client.db("STUDY_FLOW_DB").collection("features");
     const studyTaskCollection = client
       .db("STUDY_FLOW_DB")
       .collection("studyTasks");
@@ -54,6 +55,8 @@ async function run() {
     const pendingAssignmentCollection = client
       .db("STUDY_FLOW_DB")
       .collection("pendingAssignments");
+
+    const userCollection = client.db("STUDY_FLOW_DB").collection("users");
 
     // ---------------------
 
@@ -85,6 +88,76 @@ async function run() {
         next();
       });
     };
+
+    // Verify admin
+
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+
+      if (!isAdmin) {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+      next();
+    };
+
+    // user related api
+
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get(
+      "/users/admin/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        if (email !== req.decoded.email) {
+          return res.status(403).send({ message: "Forbidden Access" });
+        }
+        const query = { email: email };
+        const user = await userCollection.findOne(query);
+        let admin = false;
+        if (user) {
+          admin = user?.role === "admin";
+        }
+        res.send({ admin });
+      }
+    );
+
+    app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      console.log("user id :", id);
+
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const query = { email: user.email };
+      const existingUser = await userCollection.findOne(query);
+      if (existingUser) {
+        return res.send({
+          message: "This user is already exist!",
+          insertedId: null,
+        });
+      }
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // Features related api
+
+    app.get("/features", async (req, res) => {
+      const result = await featureCollection.find().toArray();
+      res.send(result);
+    });
 
     // Study Tasks Related Api
 
